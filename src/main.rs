@@ -1,11 +1,41 @@
-extern crate clap;
-extern crate serde_json;
-
 use clap::{App, Arg, SubCommand};
-use serde_json::Value;
+use semver::Version;
+use serde::Deserialize;
 use std::env;
+use std::fmt;
 use std::path::PathBuf;
 use std::process::Command;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+struct BuildPlan {
+    invocations: Vec<Invocation>,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+struct Invocation {
+    args: Vec<String>,
+    cwd: String,
+    env: Env,
+}
+
+#[allow(non_snake_case)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+struct Env {
+    CARGO_PKG_NAME: String,
+    CARGO_PKG_VERSION: String,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct Package {
+    name: String,
+    version: Version,
+}
+
+impl fmt::Display for Package {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        fmt.write_fmt(format_args!("{}:{}", self.name, self.version))
+    }
+}
 
 fn build_deps(is_release: bool, manifest: Option<PathBuf>, target: Option<String>, debug: bool) {
     let mut cmd = Command::new("cargo");
@@ -27,28 +57,26 @@ fn build_deps(is_release: bool, manifest: Option<PathBuf>, target: Option<String
         panic!(stderr)
     }
 
-    let plan = String::from_utf8(output.stdout).expect("Not UTF-8");
+    let build_plan_json = String::from_utf8(output.stdout).expect("Not UTF-8");
 
     let cwd = env::current_dir().unwrap();
 
-    let val: Value = serde_json::from_str(&plan).unwrap();
-    let invocations = val.get("invocations").unwrap().as_array().unwrap();
+    let build_plan: BuildPlan = serde_json::from_str(&build_plan_json).unwrap();
 
-    let mut pkgs: Vec<String> = invocations
-        .iter()
-        .filter(|&x| {
-            x.get("args").unwrap().as_array().unwrap().len() != 0
-                && x.get("cwd").unwrap().as_str().unwrap() != cwd.as_os_str()
-        })
-        .map(|ref x| {
-            let env = x.get("env").unwrap().as_object().unwrap();
-            let name = env.get("CARGO_PKG_NAME").unwrap().as_str().unwrap();
-            let version = env.get("CARGO_PKG_VERSION").unwrap().as_str().unwrap();
-            format!("{}:{}", name, version)
+    let mut pkgs: Vec<Package> = build_plan
+        .invocations
+        .into_iter()
+        .filter(|i| i.args.len() != 0 && i.cwd.as_str() != cwd.as_os_str())
+        .map(|i| Package {
+            name: i.env.CARGO_PKG_NAME,
+            version: Version::parse(&i.env.CARGO_PKG_VERSION).unwrap(),
         })
         .collect();
 
-    pkgs.dedup();
+    pkgs.sort();
+    pkgs.reverse();
+    pkgs.dedup_by_key(|p| p.name.clone());
+    pkgs.reverse();
 
     let mut command = Command::new("cargo");
     command.arg("build");
@@ -66,7 +94,7 @@ fn build_deps(is_release: bool, manifest: Option<PathBuf>, target: Option<String
     }
 
     for pkg in pkgs {
-        command.args(&["-p", &pkg]);
+        command.args(&["-p", &pkg.to_string()]);
     }
 
     if debug {
