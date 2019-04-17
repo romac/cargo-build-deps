@@ -1,10 +1,10 @@
-use clap::{App, Arg, SubCommand};
 use semver::Version;
 use serde::Deserialize;
 use std::env;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
+use structopt::StructOpt;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 struct BuildPlan {
@@ -37,7 +37,7 @@ impl fmt::Display for Package {
     }
 }
 
-fn build_deps(is_release: bool, manifest: Option<PathBuf>, target: Option<String>, debug: bool) {
+fn build_deps(manifest: Option<&Path>, target: Option<&String>, is_release: bool, debug: bool) {
     let mut cmd = Command::new("cargo");
 
     cmd.args(&["build", "--build-plan", "-Z", "unstable-options"]);
@@ -66,7 +66,7 @@ fn build_deps(is_release: bool, manifest: Option<PathBuf>, target: Option<String
     let mut pkgs: Vec<Package> = build_plan
         .invocations
         .into_iter()
-        .filter(|i| i.args.len() != 0 && i.cwd.as_str() != cwd.as_os_str())
+        .filter(|i| !i.args.is_empty() && i.cwd.as_str() != cwd.as_os_str())
         .map(|i| Package {
             name: i.env.CARGO_PKG_NAME,
             version: Version::parse(&i.env.CARGO_PKG_VERSION).unwrap(),
@@ -104,63 +104,74 @@ fn build_deps(is_release: bool, manifest: Option<PathBuf>, target: Option<String
     execute_command(&mut command);
 }
 
+#[derive(StructOpt, Debug)]
+#[structopt(
+    name = "cargo",
+    raw(setting = "structopt::clap::AppSettings::ColoredHelp")
+)]
+enum Options {
+    #[structopt(name = "build-deps")]
+    BuildDeps {
+        /// Activate debug mode
+        #[structopt(short = "d", long = "debug")]
+        debug: bool,
+
+        /// Build in release mode
+        #[structopt(short = "r", long = "release")]
+        release: bool,
+
+        /// Build workspace
+        #[structopt(short = "w", long = "workspace")]
+        workspace: bool,
+
+        /// Build for the target triple
+        #[structopt(short = "t", long = "target", name = "TRIPLE")]
+        target: Option<String>,
+    },
+}
+
+#[derive(Deserialize)]
+struct Manifest {
+    workspace: Workspace,
+}
+
+#[derive(Deserialize)]
+struct Workspace {
+    members: Vec<String>,
+}
+
 fn main() {
-    let matches = App::new("cargo")
-        .usage("cargo build-deps [FLAGS] [OPTIONS]")
-        .subcommand(
-            SubCommand::with_name("build-deps")
-                .name("build-deps")
-                .usage("cargo build-deps [FLAGS] [OPTIONS]")
-                .arg(Arg::with_name("debug").short("d").long("debug"))
-                .arg(Arg::with_name("release").long("release"))
-                .arg(Arg::with_name("workspace").short("w").long("workspace"))
-                .arg(
-                    Arg::with_name("target")
-                        .short("t")
-                        .long("target")
-                        .value_name("TARGET")
-                        .takes_value(true),
-                ),
-        )
-        .get_matches();
+    let Options::BuildDeps {
+        debug,
+        release,
+        workspace,
+        target,
+    } = Options::from_args();
 
-    if let Some(matches) = matches.subcommand_matches("build-deps") {
-        let release = matches.is_present("release");
-        let target = matches.value_of("target");
-        let debug = matches.is_present("debug");
-        let workspace = matches.is_present("workspace");
+    if workspace {
+        let manifest_contents = std::fs::read_to_string("Cargo.toml").unwrap();
+        let manifest: Manifest = toml::from_str(&manifest_contents).unwrap();
+        let members = manifest.workspace.members;
 
-        if workspace {
-            let manifest_contents = std::fs::read_to_string("Cargo.toml").unwrap();
-            let manifest: toml::Value = toml::from_str(&manifest_contents).unwrap();
-            let members: Vec<String> = manifest
-                .get("workspace")
-                .unwrap()
-                .get("members")
-                .unwrap()
-                .clone()
-                .try_into()
-                .unwrap();
+        let cwd = env::current_dir().unwrap();
 
-            let cwd = env::current_dir().unwrap();
+        for member in members {
+            let mut path = cwd.clone();
+            path.push(&member);
+            path.push("Cargo.toml");
 
-            for member in members {
-                let mut path = cwd.clone();
-                path.push(&member);
-                path.push("Cargo.toml");
+            println!(
+                "[info] Building dependencies of workspace member '{}'...",
+                member
+            );
 
-                println!(
-                    "[info] Building dependencies of workspace member '{}'...",
-                    member
-                );
-                build_deps(release, Some(path), target.map(ToOwned::to_owned), debug);
-                println!("[info] => DONE");
-            }
-        } else {
-            println!("[info] Building dependencies...");
-            build_deps(release, None, target.map(ToOwned::to_owned), debug);
+            build_deps(Some(&path), target.as_ref(), release, debug);
             println!("[info] => DONE");
         }
+    } else {
+        println!("[info] Building dependencies...");
+        build_deps(None, target.as_ref(), release, debug);
+        println!("[info] => DONE");
     }
 }
 

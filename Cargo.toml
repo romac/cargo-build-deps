@@ -23,7 +23,7 @@ allowing dependencies to be built earlier and cached.
 readme = "README.md"
 
 [dependencies]
-clap = "2.31"
+structopt = "0.2"
 serde_json = "1.0"
 toml = "0.5.0"
 semver = "0.9.0"
