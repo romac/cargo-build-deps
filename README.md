@@ -15,15 +15,16 @@ Inspired by (http://atodorov.org/blog/2017/08/30/speeding-up-rust-builds-inside-
 
 ## Notice
 
-This is a fork of @nacardin's repository, which appears be unmaintained at the moment.
+- This is a fork of @nacardin's repository, which appears be unmaintained at the moment.
+- `cargo-build-deps` now requires a nightly version of Rust.
 
 ## Install
 
-    $ cargo install --git https://github.com/romac/cargo-build-deps.git
+    $ cargo +nightly install --git https://github.com/romac/cargo-build-deps.git
 
 ## Usage
 
-    $ cargo build-deps
+    $ cargo +nightly build-deps
 
 ## Example
 
