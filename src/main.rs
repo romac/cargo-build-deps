@@ -37,10 +37,20 @@ impl fmt::Display for Package {
     }
 }
 
-fn build_deps(manifest: Option<&Path>, target: Option<&String>, is_release: bool, debug: bool) {
+fn build_deps(
+    manifest: Option<&Path>,
+    target: Option<&String>,
+    include_tests: bool,
+    is_release: bool,
+    debug: bool,
+) {
     let mut cmd = Command::new("cargo");
 
     cmd.args(&["build", "--build-plan", "-Z", "unstable-options"]);
+
+    if include_tests {
+        cmd.arg("--tests");
+    }
 
     if let Some(ref manifest) = manifest {
         cmd.args(&["--manifest-path", manifest.to_str().unwrap()]);
@@ -120,6 +130,10 @@ enum Options {
         #[structopt(short = "r", long = "release")]
         release: bool,
 
+        /// Include test dependencies
+        #[structopt(long = "tests")]
+        tests: bool,
+
         /// Build workspace
         #[structopt(short = "w", long = "workspace")]
         workspace: bool,
@@ -144,6 +158,7 @@ fn main() {
     let Options::BuildDeps {
         debug,
         release,
+        tests,
         workspace,
         target,
     } = Options::from_args();
@@ -165,12 +180,12 @@ fn main() {
                 member
             );
 
-            build_deps(Some(&path), target.as_ref(), release, debug);
+            build_deps(Some(&path), target.as_ref(), tests, release, debug);
             println!("[info] => DONE");
         }
     } else {
         println!("[info] Building dependencies...");
-        build_deps(None, target.as_ref(), release, debug);
+        build_deps(None, target.as_ref(), tests, release, debug);
         println!("[info] => DONE");
     }
 }
