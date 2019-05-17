@@ -1,7 +1,6 @@
 # cargo-build-deps
 
-[![Build Status](https://travis-ci.org/nacardin/cargo-build-deps.svg?branch=master)](https://travis-ci.org/nacardin/cargo-build-deps)
-[![Crates.io](https://img.shields.io/crates/v/cargo-build-deps.svg)](https://crates.io/crates/cargo-build-deps)
+[![Build Status](https://travis-ci.org/romac/cargo-build-deps.svg?branch=master)](https://travis-ci.org/romac/cargo-build-deps)
 
 This tool extends [Cargo](https://doc.rust-lang.org/cargo/) to allow you to
 build only the dependencies in a given rust project. This is useful for docker
@@ -14,12 +13,17 @@ changes.
 
 Inspired by (http://atodorov.org/blog/2017/08/30/speeding-up-rust-builds-inside-docker/)
 
+## Notice
+
+This is a fork of @nacardin's repository, which appears be unmaintained at the moment.
 
 ## Install
-`cargo install cargo-build-deps`
+
+    $ cargo install --git https://github.com/romac/cargo-build-deps.git
 
 ## Usage
-`cargo build-deps`
+
+    $ cargo build-deps
 
 ## Example
 
