@@ -1,16 +1,25 @@
 sudo: false
 language: rust
+
 rust:
- - beta
+  - beta
   - nightly
+
 os:
   - linux
   - osx
+
 env:
   global:
     - RUST_BACKTRACE=1
+
 script:
   - cargo build
   - cargo test
   - cargo install --path .
   - cargo build-deps
+
+cache: cargo
+before_cache:
+  # Travis can't cache files that are not readable by "others"
+  - chmod -R a+r $HOME/.cargo

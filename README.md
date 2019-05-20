@@ -15,7 +15,7 @@ Inspired by (http://atodorov.org/blog/2017/08/30/speeding-up-rust-builds-inside-
 
 ## Notice
 
-- This is a fork of @nacardin's repository, which appears be unmaintained at the moment.
+- This is a fork of [@nacardin](https://github.com/nacardin)'s [repository](https://github.com/nacardin/cargo-build-deps), which appears be unmaintained at the moment.
 - `cargo-build-deps` now requires a nightly version of Rust.
 
 ## Install
