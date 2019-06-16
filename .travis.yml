@@ -15,7 +15,7 @@ env:
 script:
   - cargo build
   - cargo test
-  - cargo install --path .
+  - cargo install --force --path .
   - cargo build-deps
 
 cache: cargo
