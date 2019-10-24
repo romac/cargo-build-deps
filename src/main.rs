@@ -43,6 +43,7 @@ fn build_deps(
     include_tests: bool,
     is_release: bool,
     debug: bool,
+    verbose: bool,
 ) {
     let mut cmd = Command::new("cargo");
 
@@ -99,6 +100,10 @@ fn build_deps(
         command.args(&["--target", &target]);
     }
 
+    if verbose {
+        command.arg("--verbose");
+    }
+
     if let Some(manifest) = manifest {
         command.args(&["--manifest-path", manifest.to_str().unwrap()]);
     }
@@ -110,7 +115,6 @@ fn build_deps(
     if debug {
         println!("[debug] Running command '{:?}'...", command);
     }
-
     execute_command(&mut command);
 }
 
@@ -134,6 +138,10 @@ enum Options {
         #[structopt(long = "tests")]
         tests: bool,
 
+        /// Use verbose output
+        #[structopt(short = "v", long = "verbose")]
+        verbose: bool,
+
         /// Build workspace
         #[structopt(short = "w", long = "workspace")]
         workspace: bool,
@@ -156,6 +164,7 @@ struct Workspace {
 
 fn main() {
     let Options::BuildDeps {
+        verbose,
         debug,
         release,
         tests,
@@ -180,12 +189,12 @@ fn main() {
                 member
             );
 
-            build_deps(Some(&path), target.as_ref(), tests, release, debug);
+            build_deps(Some(&path), target.as_ref(), tests, release, debug, verbose);
             println!("[info] => DONE");
         }
     } else {
         println!("[info] Building dependencies...");
-        build_deps(None, target.as_ref(), tests, release, debug);
+        build_deps(None, target.as_ref(), tests, release, debug, verbose);
         println!("[info] => DONE");
     }
 }
